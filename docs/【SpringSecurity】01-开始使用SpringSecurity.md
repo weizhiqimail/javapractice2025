@@ -46,7 +46,7 @@
 - 官网地址：https://docs.spring.io/spring-security/reference/index.html
 - Spring Security 专注于为 Java 应用提供 **身份认证** 和 **授权控制**。它广泛用于 Web 应用、微服务、REST API 的安全保护。
 
-## 功能：
+## 功能
 - **身份认证**：认证是谁在访问系统资源，判断是否为合法用法。
 - **授权**：身份认证后，系统会控制谁能访问哪些资源。
 - **防御常见攻击**：CSRF，HTTP Headers，HTTP Requests
@@ -104,13 +104,13 @@
 - 重定向到 login 页面，登录成功后重定向到 index 页面。
 - 默认的账号 `user`，密码在控制台，可以复制登录。
 - html 页面
+- `th:href="@{/logout}"`：动态退出登录。
+  - 如果在配置文件里配置了 `context-path` 路径，动态退出登录，可以拼接 `context-path` 的路径，后边加上 `/logout`
+  - 配置`server.servlet.context-path=spring-security-basic`
 
 ```html
-<a th:href="@{/logout}">动态退出登录，如果在配置文件里配置了 context-path 路径，动态退出登录，可以拼接 context-path 的路径，后边加上 /logout
-  <br>
-  server.servlet.context-path=spring-security-basic
-</a>
-<a href="/logout">logout2</a>
+<a th:href="@{/logout}">动态退出登录</a>
+<a href="/logout">静态退出登录</a>
 ```
 
 ## Spring Security 默认做了什么
@@ -155,9 +155,8 @@
   - 例如你可以为 `/api/**` 配置一个 `SecurityFilterChain0`，为其他请求配置 `SecurityFilterChainN`。 
   - `FilterChainProxy` 会根据请求路径匹配合适的安全过滤链并执行。
 
----
 
-- 总结流程
+## Spring Security 的底层原理的流程总结
 
 ```text
 Client 请求
