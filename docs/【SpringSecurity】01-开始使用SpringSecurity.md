@@ -178,24 +178,77 @@ FilterChainProxy（核心代理）
 ## 程序的启动和运行
 
 - `DefaultSecurityFilterChain`：加载了默认的 16 个 Filter。文件位置 `org/springframework/security/web/DefaultSecurityFilterChain.java`
-  - `org.springframework.security.web.session.DisableEncodeUrlFilter`
-  - `org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter`
-  - `org.springframework.security.web.context.SecurityContextHolderFilter`
-  - `org.springframework.security.web.header.HeaderWriterFilter`
-  - `org.springframework.security.web.csrf.CsrfFilter`
-  - `org.springframework.security.web.authentication.logout.LogoutFilter`
-  - `org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter`
-  - `org.springframework.security.web.access.intercept.DefaultResourcesFilter （特殊资源过滤器，例如 default-ui.css）`
-  - `org.springframework.security.web.authentication.ui.DefaultLoginPageGeneratingFilter`
-  - `org.springframework.security.web.authentication.ui.DefaultLogoutPageGeneratingFilter`
-  - `org.springframework.security.web.authentication.www.BasicAuthenticationFilter`
-  - `org.springframework.security.web.savedrequest.RequestCacheAwareFilter`
-  - `org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter`
-  - `org.springframework.security.web.authentication.AnonymousAuthenticationFilter`
-  - `org.springframework.security.web.access.ExceptionTranslationFilter`
-  - `org.springframework.security.web.access.intercept.AuthorizationFilter`
-- `SecurityProperties`：初始化配置，配置了用户名 user 和 密码 uuid。文件位置 `org/springframework/boot/autoconfigure/security/SecurityProperties.java`
-  - 在 `application.properties` 中自定义用户名和密码
+
+
+### `DefaultSecurityFilterChain`：加载了默认的 16 个 Filter。
+
+- 文件位置 `org/springframework/security/web/DefaultSecurityFilterChain.java`
+- 16 个过滤器
+
+- `org.springframework.security.web.session.DisableEncodeUrlFilter`：
+- `org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter`
+- `org.springframework.security.web.context.SecurityContextHolderFilter`
+- `org.springframework.security.web.header.HeaderWriterFilter`
+- `org.springframework.security.web.csrf.CsrfFilter`
+- `org.springframework.security.web.authentication.logout.LogoutFilter`
+- `org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter`
+- `org.springframework.security.web.access.intercept.DefaultResourcesFilter （特殊资源过滤器，例如 default-ui.css）`
+- `org.springframework.security.web.authentication.ui.DefaultLoginPageGeneratingFilter`
+- `org.springframework.security.web.authentication.ui.DefaultLogoutPageGeneratingFilter`
+- `org.springframework.security.web.authentication.www.BasicAuthenticationFilter`
+- `org.springframework.security.web.savedrequest.RequestCacheAwareFilter`
+- `org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter`
+- `org.springframework.security.web.authentication.AnonymousAuthenticationFilter`
+- `org.springframework.security.web.access.ExceptionTranslationFilter`
+- `org.springframework.security.web.access.intercept.AuthorizationFilter`
+
+### `DefaultSecurityFilterChain` 的 16 个过滤器，每个过滤器的功能
+
+1. `DisableEncodeUrlFilter`：禁用 URL 重写（即 jsessionid 追加到 URL 中），避免 Session 被 URL 泄露。
+  - 请求地址不会变成 /home;jsessionid=XXXX，提升安全性。 
+  - 常见于浏览器不支持 Cookie 时的降级机制，但在现代应用中通常不再使用。
+2. `WebAsyncManagerIntegrationFilter`；用于支持异步 Web 请求（如 Callable、DeferredResult）的 SecurityContext 传播。
+  - 在异步 Controller 中使用 `SecurityContextHolder.getContext().getAuthentication()` 获取用户信息不会失效。
+3. `SecurityContextHolderFilter`：替代旧的 `SecurityContextPersistenceFilter`，在请求开始前填充 `SecurityContext`，请求结束后清除。
+  - 所有控制器和服务中都能通过 `SecurityContextHolder.getContext()` 访问认证信息。
+4. `HeaderWriterFilter`：写入一系列默认的 HTTP 安全响应头，防止点击劫持、XSS、内容类型混淆等攻击。
+  - 返回头包含： `X-Content-Type-Options: nosniff`、`X-Frame-Options: DENY`、`Strict-Transport-Security`（如果启用 HTTPS）
+5. `CsrfFilter`：提供 CSRF 攻击防护，防止恶意站点伪造请求。
+  - 表单会自动生成 `_csrf` 隐藏字段； 
+  - AJAX 请求需要在请求头中包含 `X-CSRF-TOKEN`； 
+  - 非法请求会返回 403。
+6. `LogoutFilter`：处理用户登出操作：清除认证、Session、Cookie，并跳转到指定 URL。
+  - 访问 `/logout` 即触发登出逻辑，重定向到 `/login?logout`； 
+  - 可通过配置修改默认登出路径。
+7. `UsernamePasswordAuthenticationFilter`：处理基于表单的用户名和密码登录请求，默认 POST `/login`。
+  - 拦截登录表单的提交，验证用户名和密码； 
+  - 登录成功会保存认证信息并跳转； 
+  - 登录失败会重定向到 `/login?error`。
+8. `DefaultResourcesFilter`：允许 Spring Security 默认资源（如 CSS、图片）被访问，不拦截静态资源。
+  - 默认登录页中引用的 `/default-ui.css` 不会被权限拦截。
+9. `DefaultLoginPageGeneratingFilter`：如果未定义自定义登录页，Spring Security 自动生成一个默认的登录页面。
+  - 访问受保护资源时未登录，自动跳转到 Spring 提供的标准登录页面。
+10. `DefaultLogoutPageGeneratingFilter`：如果未定义自定义登出页，提供一个默认的“注销成功”页面。
+  - 访问 `/logout` 后会看到一个简单的页面提示“您已成功登出”。
+11. `BasicAuthenticationFilter`：支持 HTTP Basic 认证方式（基于请求头中的用户名密码认证）。
+  - 客户端通过设置请求头 `Authorization: Basic base64(user:pass)` 来访问 API； 
+  - 常用于接口开发或与第三方系统集成。
+12. `RequestCacheAwareFilter`：在用户未登录访问受保护资源时，缓存原始请求，登录成功后自动跳转回原路径。
+  - 用户访问 `/profile` → 跳转 `/login` → 登录后重定向回 `/profile`。
+13. `SecurityContextHolderAwareRequestFilter`：扩展原生 `HttpServletRequest`，提供如 `getUserPrincipal()`、`isUserInRole()` 等方法。
+  - 在 JSP 页面中可以使用 `<c:if test="${pageContext.request.userPrincipal.name == 'admin'}">` 进行权限控制。
+14. `AnonymousAuthenticationFilter`：如果用户未登录，也会提供一个匿名身份（`AnonymousAuthenticationToken`）用于访问公共资源。
+  - 匿名用户也有认证对象，角色通常为 `ROLE_ANONYMOUS`； 
+  - 可用于区分匿名与已登录用户行为。
+15. `ExceptionTranslationFilter`：捕获过滤器链中抛出的权限相关异常（如未登录、无权限），决定跳转登录页或返回 403。
+  - 未登录访问受保护资源 → 自动跳转到登录页； 
+  - 登录但无权限 → 返回 HTTP 403 Forbidden。
+16. `AuthorizationFilter`：最后进行访问控制判断，根据配置的访问规则（如 `hasRole`、`permitAll`）决定是否允许访问。
+  - 配置如 `.antMatchers("/admin/**").hasRole("ADMIN")` 在此处生效。
+
+### `SecurityProperties`：初始化配置，配置了用户名 user 和 密码 uuid。
+- 文件位置 `org/springframework/boot/autoconfigure/security/SecurityProperties.java`
+- 在 `application.properties` 中自定义用户名和密码
 
 ```text
 spring.security.user.name=user
